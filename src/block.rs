@@ -47,7 +47,7 @@ impl Block{
         };
 
         block.run_proof_of_work()?;
-        Ok(block);
+        Ok(block)
 
     }
 
@@ -61,18 +61,6 @@ impl Block{
         Ok(())
     }
 
-    fn prepare_hash_data(&self) -> Result<Vec<u8>> {
-        let content = (
-            self.prev_block_hash.clone(),
-            self.transactions.clone(),
-            self.timestamp,
-            TARGET_HEXT,
-            self.nonce
-        );
-        let bytes = bincode::serialize(&content)?;
-        Ok(bytes);
-    }
-
     fn validate(&self)->Result<bool> {
         let data = self.prepare_hash_data()?;
         let mut hasher = Sha256::new();
@@ -82,6 +70,20 @@ impl Block{
         // println!("{:?}",vec1);
         Ok(&hasher.result_str()[0..TARGET_HEXT] == String::from_utf8(vec1)?)
     }
+
+    fn prepare_hash_data(&self) -> Result<Vec<u8>> {
+        let content = (
+            self.prev_block_hash.clone(),
+            self.transactions.clone(),
+            self.timestamp,
+            TARGET_HEXT,
+            self.nonce
+        );
+        let bytes = bincode::serialize(&content)?;
+        Ok(bytes)
+    }
+
+   
 }
 
 impl Blockchain{
