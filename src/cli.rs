@@ -25,16 +25,29 @@ impl Cli{
 
         if let Some(ref matches) = matches.subcommand_matches("addblock"){
             if let Some(c) = matches.get_one::<String>("DATA"){
-                self.bc.add_block(String::from(c))?;
+                self.addblock(String::from(c))?;
             }else{
                 println!("not printing testing lists");
             }
         }
 
         if let Some(_) = matches.subcommand_matches("printchain"){
-            self.print_chain();
+            self.printchain();
         }
 
         Ok(())
     }
+
+    fn addblock(&mut self, data: String) -> Result<()>{
+        self.bc.add_block(data);
+        Ok(())
+    }
+
+    fn printchain(&self) -> Result<()> {
+        for item in self.bc.iter() {
+            println!("block: {:?}", item);
+        }
+        Ok(())
+    }
+
 }
