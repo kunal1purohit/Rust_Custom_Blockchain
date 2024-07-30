@@ -3,6 +3,7 @@ mod block;
 mod error;
 mod blockchain;
 mod cli;
+mod transaction;
 use crate::error::Result;
 
 fn main() ->Result<()>{

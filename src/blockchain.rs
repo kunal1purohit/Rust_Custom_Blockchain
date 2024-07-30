@@ -1,5 +1,7 @@
 use crate::block::Block;
 use crate::error::Result;
+use log::info;
+use crate::transaction::Transaction;
 
 const TARGET_HEXT:usize =4;
 
@@ -16,27 +18,28 @@ pub struct BlockchainIter<'a>{
 
 impl Blockchain{
     pub fn new() -> Result<Blockchain>{
+        info!("open blockchain");
         let db = sled::open("data/blocks")?;
-        match db.get("LAST")? {
-            Some(hash)=>{
-                let lasthash = String::from_utf8(hash.to_vec())?;
-                Ok(Blockchain{
-                    current_hash:lasthash,
-                    db
-                })
-            }
-            None=>{
-                let block=Block::new_genesis_block();
-                db.insert(block.get_hash(), bincode::serialize(&block)?)?;
-                db.insert("LAST",block.get_hash().as_bytes())?;
-                let bc = Blockchain{
-                    current_hash: block.get_hash(),
-                    db,
-                };
-                bc.db.flush()?;
-                Ok(bc)
-            }
-        }
+        let hash=db.get("LAST")?.expect("must create a new blockchain database first");
+        info!("found blockchain database");
+        let lasthash = String::from_utf8(hash.to_vec())?;
+        Ok(Blockchain { current_hash: lasthash.clone(), db })
+    }
+
+    pub fn create_blockchain(address:String)->Result<Blockchain>{
+        info!("creating new blockchain");
+        let db = sled::open("data/blocks")?;
+        info!("creating new block database");
+        let cbtx = Transaction::new_coinbase(address , String::from("GENESIS_COIN"))?;
+        let genesis = Block::new_genesis_block(cbtx);
+        db.insert(genesis.get_hash(), bincode::serialize(&genesis)?)?;
+        db.insert("LAST", genesis.get_hash().as_bytes())?;
+        let bc = Blockchain{
+            current_hash:genesis.get_hash(),
+            db,
+        };
+        bc.db.flush()?;
+        Ok(bc)
     }
 
     pub fn add_block(&mut self, data:String)->Result<()>{
