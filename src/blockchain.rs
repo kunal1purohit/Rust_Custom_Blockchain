@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use crate::block::Block;
 use crate::error::Result;
 use log::info;
-use crate::transaction::Transaction;
+use sled;
+use crate::{tx::TXOutput, transaction::Transaction};
 
 const TARGET_HEXT:usize =4;
 
@@ -42,13 +45,94 @@ impl Blockchain{
         Ok(bc)
     }
 
-    pub fn add_block(&mut self, data:String)->Result<()>{
+    pub fn add_block(&mut self, transactions:Vec<Transaction>)->Result<()>{
         let lasthash = self.db.get("LAST")?.unwrap();
-        let new_block = Block::new_block(data,String::from_utf8(lasthash.to_vec())?,TARGET_HEXT)?;
+        let new_block = Block::new_block(transactions,String::from_utf8(lasthash.to_vec())?,TARGET_HEXT)?;
         self.db.insert(new_block.get_hash(),bincode::serialize(&new_block)?)?;
         self.db.insert("LAST",new_block.get_hash().as_bytes())?;
         self.current_hash = new_block.get_hash();        
         Ok(())
+    }
+
+    fn find_unspent_transactions(&self, address:&str) -> Vec<Transaction>{
+        let mut spent_txos : HashMap<String , Vec<i32>> = HashMap::new();
+        let mut unspend_txs : Vec<Transaction> = Vec::new();
+
+        for block in self.iter(){
+            for tx in block.get_transaction(){
+                for index in 0..tx.vout.len(){
+                    if let Some(ids) = spent_txos.get(&tx.id){
+                        if ids.contains(&(index as i32)){
+                            continue;
+                        }
+                    }
+                    if tx.vout[index].can_be_unlock_with(address){
+                        unspend_txs.push(tx.to_owned())
+                    }
+
+                }
+                if !tx.is_coinbase(){
+                    for i in &tx.vin{
+                        if i.can_unlock_output_with(address){
+                            match spent_txos.get_mut(&i.txid){
+                                Some(v) => {
+                                    v.push(i.vout);
+                                }
+                                None=>{
+                                    spent_txos.insert(i.txid.clone(),vec![i.vout]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        unspend_txs
+    }
+
+    pub fn find_UTXO(&self,address:&str) -> Vec<TXOutput> {
+        let mut utxos  = Vec::<TXOutput>::new();
+        let unspend_TXs = self.find_unspent_transactions(address);
+        for tx in unspend_TXs{
+            for out in &tx.vout{
+                if out.can_be_unlock_with(&address){
+                    utxos.push(out.clone());
+                }
+            }
+        }
+        utxos
+    }
+
+    pub fn find_spendable_outputs(
+        &self,
+        address:&str,
+        amount:i32,
+    )->(i32 , HashMap<String,Vec<i32>>){
+        let mut unspent_outputs:HashMap<String,Vec<i32>> = HashMap::new();
+        let mut accumulated = 0;
+        let unspend_txs = self.find_unspent_transactions(address);
+        
+        for tx in unspend_txs{
+            for index in 0..tx.vout.len(){
+                if tx.vout[index].can_be_unlock_with(&address) && accumulated<amount{
+                    match unspent_outputs.get_mut(&tx.id){
+                        Some(v) =>{
+                            v.push(index as i32);
+                        },
+                        None=>{
+                            unspent_outputs.insert(tx.id.clone(),vec![index as i32]);
+                        }
+                    }
+                    accumulated += tx.vout[index].value;
+                    if accumulated>=amount{
+                        return (accumulated,unspent_outputs);
+                    }
+                }
+
+            }
+        }
+        return (accumulated,unspent_outputs)
     }
 
     pub fn iter(&self) -> BlockchainIter{
@@ -87,9 +171,9 @@ mod tests{
     #[test]
     fn test_add_block(){
         let mut b = Blockchain::new().unwrap();
-        b.add_block("data".to_string());
-        b.add_block("data2".to_string());
-        b.add_block("data3".to_string());
+        // b.add_block("data".to_string());
+        // b.add_block("data2".to_string());
+        // b.add_block("data3".to_string());
         for item in b.iter() {
             println!("item {:?}",item)
         }
