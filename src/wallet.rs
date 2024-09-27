@@ -52,23 +52,40 @@ pub fn pub_hash_key(pub_key:&mut Vec<u8>){
     // hasher2.result(pub_key);
 
 
-    // Create a buffer for the first SHA256 hash (32 bytes)
-    let mut hasher1 = Sha256::new();
-    let mut sha256_hash = vec![0u8; 32];
-    hasher1.input(pub_key);
-    hasher1.result(&mut sha256_hash);
 
-    // Hash the result of the first hash
-    let mut hasher2 = Sha256::new();
-    hasher2.input(&sha256_hash);
 
-    // Resize pub_key to 32 bytes temporarily to hold the second hash
-    let mut final_hash = vec![0u8; 32];
-    hasher2.result(&mut final_hash);
 
-    // Only take the first 20 bytes (RIPEMD160-like truncation)
-    pub_key.clear();
-    pub_key.extend_from_slice(&final_hash[..20]);  // Only keep the first 20 bytes
+ // SHA256 hashing
+ let mut hasher1 = Sha256::new();
+ hasher1.input(pub_key);
+ hasher1.result(pub_key);
+
+ // RIPEMD160 hashing
+ let mut hasher2 = Ripemd160::new();
+ hasher2.input(pub_key);
+ pub_key.resize(20, 0);
+ hasher2.result(pub_key);
+
+
+
+
+    // // Create a buffer for the first SHA256 hash (32 bytes)
+    // let mut hasher1 = Sha256::new();
+    // let mut sha256_hash = vec![0u8; 32];
+    // hasher1.input(pub_key);
+    // hasher1.result(&mut sha256_hash);
+
+    // // Hash the result of the first hash
+    // let mut hasher2 = Sha256::new();
+    // hasher2.input(&sha256_hash);
+
+    // // Resize pub_key to 32 bytes temporarily to hold the second hash
+    // let mut final_hash = vec![0u8; 32];
+    // hasher2.result(&mut final_hash);
+
+    // // Only take the first 20 bytes (RIPEMD160-like truncation)
+    // pub_key.clear();
+    // pub_key.extend_from_slice(&final_hash[..20]);  // Only keep the first 20 bytes
 }
 
 pub struct Wallets{
