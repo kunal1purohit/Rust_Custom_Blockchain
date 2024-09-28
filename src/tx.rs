@@ -3,9 +3,13 @@ use crate::error::Result;
 use log::debug;
 use bitcoincash_addr::Address;
 use crate::transaction::hash_pub_key;
-
-
 use serde::{Deserialize, Serialize};
+
+
+#[derive(Serialize,Deserialize,Debug,Clone)]
+pub struct TXOutputs{
+    pub outputs : Vec<TXOutput>
+}
 
 #[derive(Serialize,Deserialize,Debug,Clone)]
 pub struct TXInput{
