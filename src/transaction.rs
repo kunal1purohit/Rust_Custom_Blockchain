@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use crate::wallet::Wallets;
 use crypto::ripemd160::Ripemd160;
 use crypto::ed25519;
+use crate::utxoset::UTXOSet;
 
 
 #[derive(Serialize,Deserialize,Debug,Clone)]
@@ -22,7 +23,7 @@ pub struct Transaction{
 
 impl Transaction{
 
-    pub fn new_UTXO(from:&str , to:&str , amount:i32 , bc:&Blockchain)->Result<Transaction>{
+    pub fn new_UTXO(from:&str , to:&str , amount:i32 , bc:&UTXOSet)->Result<Transaction>{
         let mut vin = Vec::new();
 
         let wallets = Wallets::new()?;
@@ -39,7 +40,7 @@ impl Transaction{
         hash_pub_key(&mut pub_key_hash);
 
 
-        let acc_v = bc.find_spendable_outputs(&pub_key_hash, amount);
+        let acc_v = bc.find_spendable_outputs(&pub_key_hash, amount)?;
 
         if(acc_v.0 < amount){
             error!("not enough balance");
@@ -79,7 +80,7 @@ impl Transaction{
 
         tx.id = tx.hash()?;
 
-        bc.sign_transaction(&mut tx , &wallet.secret_key)?;
+        bc.blockchain.sign_transaction(&mut tx , &wallet.secret_key)?;
 
         Ok(tx)
     }
@@ -157,7 +158,7 @@ impl Transaction{
         private_key: &[u8],
         prev_TXs: HashMap<String,Transaction>
     )->Result<()>{
-        if self.is_coinbase(){
+        if self.is_coinbase(){ 
             return Ok(());
         }
         for vin in &self.vin{

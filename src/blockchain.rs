@@ -47,13 +47,13 @@ impl Blockchain{
         Ok(bc)
     }
 
-    pub fn add_block(&mut self, transactions:Vec<Transaction>)->Result<()>{
+    pub fn add_block(&mut self, transactions:Vec<Transaction>)->Result<Block>{
         let lasthash = self.db.get("LAST")?.unwrap();
         let new_block = Block::new_block(transactions,String::from_utf8(lasthash.to_vec())?,TARGET_HEXT)?;
         self.db.insert(new_block.get_hash(),bincode::serialize(&new_block)?)?;
         self.db.insert("LAST",new_block.get_hash().as_bytes())?;
         self.current_hash = new_block.get_hash();        
-        Ok(())
+        Ok(new_block)
     }
 
     fn find_unspent_transactions(&self, address:&[u8]) -> Vec<Transaction>{
@@ -143,38 +143,7 @@ impl Blockchain{
         utxos
     }
 
-    pub fn find_spendable_outputs(
-        &self,
-        address:&[u8],
-        amount:i32,
-    )->(i32 , HashMap<String,Vec<i32>>){
-        let mut unspent_outputs:HashMap<String,Vec<i32>> = HashMap::new();
-        let mut accumulated = 0;
-        let unspend_txs = self.find_unspent_transactions(address);
-        println!("{}",unspend_txs.len());
-        
-        for tx in unspend_txs{
-            for index in 0..tx.vout.len(){
-                if tx.vout[index].can_be_unlock_with(&address) && accumulated<amount{
-                    match unspent_outputs.get_mut(&tx.id){
-                        Some(v) =>{
-                            v.push(index as i32);
-                        },
-                        None=>{
-                            unspent_outputs.insert(tx.id.clone(),vec![index as i32]);
-                        }
-                    }
-                    accumulated += tx.vout[index].value;
-                    if accumulated>=amount{
-                        return (accumulated,unspent_outputs);
-                    }
-                }
-
-            }
-        }
-        println!("{}",accumulated);
-        return (accumulated,unspent_outputs)
-    }
+    
 
     pub fn iter(&self) -> BlockchainIter{
         BlockchainIter{
